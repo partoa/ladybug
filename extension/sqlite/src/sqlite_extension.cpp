@@ -1,17 +1,17 @@
-#include "postgres_extension.h"
+#include "sqlite_extension.h"
 
 #include "main/database.h"
-#include "postgres_storage.h"
+#include "sqlite_storage.h"
 
 namespace kuzu {
-namespace postgres_extension {
+namespace sqlite_extension {
 
-void PostgresExtension::load(main::ClientContext* context) {
+void SqliteExtension::load(main::ClientContext* context) {
     auto db = context->getDatabase();
-    db->registerStorageExtension(EXTENSION_NAME, std::make_unique<PostgresStorageExtension>(db));
+    db->registerStorageExtension(EXTENSION_NAME, std::make_unique<SqliteStorageExtension>(db));
 }
 
-} // namespace postgres_extension
+} // namespace sqlite_extension
 } // namespace kuzu
 
 extern "C" {
@@ -23,6 +23,6 @@ extern "C" {
 #define INIT_EXPORT __attribute__((visibility("default")))
 #endif
 INIT_EXPORT void init(kuzu::main::ClientContext* context) {
-    kuzu::postgres_extension::PostgresExtension::load(context);
+    kuzu::sqlite_extension::SqliteExtension::load(context);
 }
 }
