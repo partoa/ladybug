@@ -5,7 +5,7 @@
 namespace lbug {
 namespace binder {
 
-class VariableExpression final : public Expression {
+class LBUG_API VariableExpression final : public Expression {
     static constexpr common::ExpressionType expressionType_ = common::ExpressionType::VARIABLE;
 
 public:
