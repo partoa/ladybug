@@ -1,0 +1,24 @@
+[submodule "extension"]
+	path = extension
+	url = /Users/arun/src/refactor/repos/extensions.git
+[submodule "benchmark"]
+	path = benchmark
+	url = /Users/arun/src/refactor/repos/benchmarks.git
+[submodule "dataset"]
+	path = dataset
+	url = /Users/arun/src/refactor/repos/dataset.git
+[submodule "tools/java_api"]
+	path = tools/java_api
+	url = /Users/arun/src/refactor/repos/java_api.git
+[submodule "tools/nodejs_api"]
+	path = tools/nodejs_api
+	url = /Users/arun/src/refactor/repos/nodejs_api.git
+[submodule "tools/python_api"]
+	path = tools/python_api
+	url = /Users/arun/src/refactor/repos/python_api.git
+[submodule "tools/rust_api"]
+	path = tools/rust_api
+	url = /Users/arun/src/refactor/repos/rust_api.git
+[submodule "tools/wasm"]
+	path = tools/wasm
+	url = /Users/arun/src/refactor/repos/wasm_api.git
