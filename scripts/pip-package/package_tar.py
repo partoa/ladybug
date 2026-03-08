@@ -48,9 +48,18 @@ if __name__ == "__main__":
         )
 
         with tarfile.open(os.path.join(tempdir, "real_ladybug-source.tar")) as tar:
-            tar.extractall(path=os.path.join(tempdir, "real_ladybug-source"), filter=None)
+            tar.extractall(
+                path=os.path.join(tempdir, "real_ladybug-source"), filter=None
+            )
 
         os.remove(os.path.join(tempdir, "real_ladybug-source.tar"))
+
+        # git archive does not include submodule contents; copy them in explicitly.
+        shutil.copytree(
+            os.path.abspath(os.path.join(base_dir, "..", "tools/python_api")),
+            os.path.join(tempdir, "real_ladybug-source/tools/python_api"),
+            dirs_exist_ok=True,
+        )
 
         # Remove components that are not needed for the pip package
         shutil.rmtree(os.path.join(tempdir, "real_ladybug-source/dataset"))
