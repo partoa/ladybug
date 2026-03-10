@@ -170,6 +170,9 @@ jobs:
       - name: Update submodules
         run: git submodule update --init --recursive tools/rust_api
 
+      - name: Create lbug-src symlink
+        run: ln -s $(pwd) tools/rust_api/lbug-src
+
       - name: Install uv
         run: pip3 install uv
 
