@@ -18,7 +18,7 @@
 	url = https://github.com/ladybugdb/ladybug-python
 [submodule "tools/rust_api"]
 	path = tools/rust_api
-	url = https://github.com/ladybugdb/ladybug-rust
+	url = https://github.com/partoa/ladybug-rust
 [submodule "tools/wasm"]
 	path = tools/wasm
 	url = https://github.com/ladybugdb/ladybug-wasm
