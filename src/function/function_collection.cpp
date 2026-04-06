@@ -231,7 +231,7 @@ FunctionCollection* FunctionCollection::getFunctions() {
         TABLE_FUNCTION(DiskSizeInfoFunction), TABLE_FUNCTION(ShowLoadedExtensionsFunction),
         TABLE_FUNCTION(ShowOfficialExtensionsFunction), TABLE_FUNCTION(ShowIndexesFunction),
         TABLE_FUNCTION(ShowProjectedGraphsFunction), TABLE_FUNCTION(ProjectedGraphInfoFunction),
-        TABLE_FUNCTION(ShowMacrosFunction),
+        TABLE_FUNCTION(ShowMacrosFunction), TABLE_FUNCTION(ArrowScanFunction),
 
         // Standalone Table functions
         STANDALONE_TABLE_FUNCTION(LocalCacheArrayColumnFunction),

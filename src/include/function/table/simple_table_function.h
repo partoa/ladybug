@@ -196,5 +196,11 @@ struct LocalCacheArrayColumnFunction final {
     static function_set getFunctionSet();
 };
 
+struct ArrowScanFunction final {
+    static constexpr const char* name = "ARROW_SCAN";
+
+    static function_set getFunctionSet();
+};
+
 } // namespace function
 } // namespace lbug
