@@ -43,7 +43,6 @@ pub(crate) mod ffi_arrow {
         fn query_result_get_arrow_schema<'db>(result: &QueryResult<'db>) -> Result<ArrowSchema>;
     }
 
-    // Zero-copy Arrow import
     unsafe extern "C++" {
         #[namespace = "lbug_arrow"]
         fn create_node_table_from_arrow<'db>(
@@ -86,5 +85,11 @@ pub(crate) mod ffi_arrow {
             schema: ArrowSchema,
             array: ArrowArray,
         ) -> Result<()>;
+
+        #[namespace = "lbug_arrow"]
+        fn register_arrow_data(schema: ArrowSchema, array: ArrowArray) -> Result<String>;
+
+        #[namespace = "lbug_arrow"]
+        fn unregister_arrow_data(arrow_id: &str) -> Result<()>;
     }
 }

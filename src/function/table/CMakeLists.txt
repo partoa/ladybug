@@ -1,5 +1,6 @@
 add_library(lbug_table_function
         OBJECT
+        arrow_scan.cpp
         bind_data.cpp
         bind_input.cpp
         bm_info.cpp
