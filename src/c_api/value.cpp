@@ -113,6 +113,31 @@ lbug_value* lbug_value_create_double(double val_) {
     return c_value;
 }
 
+lbug_value* lbug_value_create_decimal(const char* val_, uint32_t precision, uint32_t scale) {
+    auto* c_value = (lbug_value*)calloc(1, sizeof(lbug_value));
+    auto decimalType = LogicalType::DECIMAL(precision, scale);
+    auto value = Value::createDefaultValue(decimalType);
+    switch (decimalType.getPhysicalType()) {
+    case PhysicalTypeID::INT16:
+        lbug::function::decimalCast(val_, strlen(val_), value.val.int16Val, decimalType);
+        break;
+    case PhysicalTypeID::INT32:
+        lbug::function::decimalCast(val_, strlen(val_), value.val.int32Val, decimalType);
+        break;
+    case PhysicalTypeID::INT64:
+        lbug::function::decimalCast(val_, strlen(val_), value.val.int64Val, decimalType);
+        break;
+    case PhysicalTypeID::INT128:
+        lbug::function::decimalCast(val_, strlen(val_), value.val.int128Val, decimalType);
+        break;
+    default:
+        free(c_value);
+        return nullptr;
+    }
+    c_value->_value = new Value(std::move(value));
+    return c_value;
+}
+
 lbug_value* lbug_value_create_internal_id(lbug_internal_id_t val_) {
     auto* c_value = (lbug_value*)calloc(1, sizeof(lbug_value));
     internalID_t id(val_.offset, val_.table_id);
@@ -172,6 +197,13 @@ lbug_value* lbug_value_create_interval(lbug_interval_t val_) {
 lbug_value* lbug_value_create_string(const char* val_) {
     auto* c_value = (lbug_value*)calloc(1, sizeof(lbug_value));
     c_value->_value = new Value(val_);
+    return c_value;
+}
+
+lbug_value* lbug_value_create_uuid(const char* val_) {
+    auto* c_value = (lbug_value*)calloc(1, sizeof(lbug_value));
+    c_value->_value =
+        new Value(lbug::common::uuid{lbug::common::UUID::fromCString(val_, strlen(val_))});
     return c_value;
 }
 
@@ -342,6 +374,22 @@ lbug_state lbug_value_get_struct_field_name(lbug_value* value, uint64_t index, c
         return LbugError;
     }
     *out_result = convertToOwnedCString(struct_field_name);
+    return LbugSuccess;
+}
+
+lbug_state lbug_value_get_struct_field_index(lbug_value* value, const char* field_name,
+    uint64_t* out_result) {
+    auto physical_type_id = static_cast<Value*>(value->_value)->getDataType().getPhysicalType();
+    if (physical_type_id != PhysicalTypeID::STRUCT) {
+        return LbugError;
+    }
+    auto val = static_cast<Value*>(value->_value);
+    const auto& data_type = val->getDataType();
+    auto index = StructType::getFieldIdx(data_type, field_name);
+    if (index == INVALID_STRUCT_FIELD_IDX) {
+        return LbugError;
+    }
+    *out_result = index;
     return LbugSuccess;
 }
 
@@ -755,8 +803,7 @@ lbug_state lbug_value_get_uuid(lbug_value* value, char** out_result) {
         return LbugError;
     }
     try {
-        *out_result =
-            convertToOwnedCString(static_cast<Value*>(value->_value)->getValue<std::string>());
+        *out_result = convertToOwnedCString(static_cast<Value*>(value->_value)->toString());
     } catch (Exception& e) {
         return LbugError;
     }

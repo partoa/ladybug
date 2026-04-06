@@ -2,6 +2,12 @@
 
 #include <cstring>
 
+#include "c_api/lbug.h"
+
+namespace {
+thread_local std::string lastCAPIErrorMessage;
+}
+
 #ifdef _WIN32
 const uint64_t NS_TO_SEC = 10000000ULL;
 const uint64_t SEC_TO_UNIX_EPOCH = 11644473600ULL;
@@ -45,10 +51,31 @@ int32_t convertTimeToTm(time_t time, struct tm* out_tm) {
 }
 #endif
 
+void setLastCAPIErrorMessage(const std::string& message) {
+    lastCAPIErrorMessage = message;
+}
+
+void clearLastCAPIErrorMessage() {
+    lastCAPIErrorMessage.clear();
+}
+
+char* takeLastCAPIErrorMessage() {
+    if (lastCAPIErrorMessage.empty()) {
+        return nullptr;
+    }
+    auto* message = convertToOwnedCString(lastCAPIErrorMessage);
+    lastCAPIErrorMessage.clear();
+    return message;
+}
+
 char* convertToOwnedCString(const std::string& str) {
     size_t src_len = str.size();
     auto* c_str = (char*)malloc(sizeof(char) * (src_len + 1));
     memcpy(c_str, str.c_str(), src_len);
     c_str[src_len] = '\0';
     return c_str;
+}
+
+char* lbug_get_last_error() {
+    return takeLastCAPIErrorMessage();
 }

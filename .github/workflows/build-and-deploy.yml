@@ -207,9 +207,11 @@ jobs:
 
   build-java:
     if: ${{ github.event_name == 'schedule' || github.event.inputs.skipJava != 'true' }}
+    needs: [build-precompiled-bin]
     uses: ./.github/workflows/java-workflow.yml
     with:
       isNightly: ${{ github.event_name == 'schedule' || github.event.inputs.isNightly == 'true' }}
+      precompiledRunId: ${{ github.run_id }}
     secrets: inherit
 
   deploy-java:
@@ -264,7 +266,17 @@ jobs:
       - name: Create Java JAR
         working-directory: tools/java_api
         run: |
-          ./gradlew build
+          ./gradlew build --stacktrace --info --warning-mode all --no-parallel --max-workers=1
+
+      - name: Upload Java test diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: java-test-diagnostics
+          path: |
+            tools/java_api/build/test-results/test
+            tools/java_api/build/reports/tests/test
+            tools/java_api/build/hs_err_pid*.log
 
       - name: Upload Java JAR
         uses: actions/upload-artifact@v4
@@ -305,9 +317,11 @@ jobs:
 
   build-nodejs:
     if: ${{ github.event_name == 'schedule' || github.event.inputs.skipNodejs != 'true' }}
+    needs: [build-precompiled-bin]
     uses: ./.github/workflows/nodejs-workflow.yml
     with:
       isNightly: ${{ github.event_name == 'schedule' || github.event.inputs.isNightly == 'true' }}
+      precompiledRunId: ${{ github.run_id }}
     secrets: inherit
 
   deploy-nodejs:

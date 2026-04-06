@@ -2,25 +2,37 @@ name: Build Node.js Module
 
 on:
   workflow_dispatch:
+    inputs:
+      precompiledRunId:
+        description: "Run ID of the precompiled-bin job whose artifacts should be used"
+        required: true
+        type: string
   workflow_call:
     inputs:
       isNightly:
         type: boolean
         required: true
         default: false
+      precompiledRunId:
+        type: string
+        required: true
 
 jobs:
   build-nodejs:
     runs-on: ${{ matrix.os }}
+    env:
+      LBUG_LINUX_VARIANT: compat
+      LBUG_NODEJS_PRECOMPILED_DIR: ${{ github.workspace }}/precompiled-liblbug
+      LBUG_NODEJS_PRECOMPILED_LIB_PATH: ${{ matrix.platform == 'win32' && format('{0}/precompiled-liblbug/lbug.lib', github.workspace) || format('{0}/precompiled-liblbug/liblbug.a', github.workspace) }}
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-22.04
             arch: x64
             platform: linux
             artifact_name: linux-nodejs-module-x86_64
             node_name: lbugjs-linux-x64.node
-          - os: ubuntu-24.04-arm
+          - os: ubuntu-22.04-arm
             arch: arm64
             platform: linux
             artifact_name: linux-nodejs-module-aarch64
@@ -30,6 +42,12 @@ jobs:
             platform: darwin
             artifact_name: mac-nodejs-module-arm64
             node_name: lbugjs-darwin-arm64.node
+            mac_env: true
+          - os: macos-15-intel
+            arch: x64
+            platform: darwin
+            artifact_name: mac-nodejs-module-x64
+            node_name: lbugjs-darwin-x64.node
             mac_env: true
           - os: windows-latest
             arch: x64
@@ -41,6 +59,26 @@ jobs:
 
       - name: Update submodules
         run: git submodule update --init --recursive tools/nodejs_api dataset
+
+      - name: Install GCC 13 (Linux)
+        if: ${{ matrix.platform == 'linux' }}
+        run: |
+          sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
+          sudo apt-get update
+          sudo apt-get install -y gcc-13 g++-13
+          echo "CC=gcc-13" >> $GITHUB_ENV
+          echo "CXX=g++-13" >> $GITHUB_ENV
+
+      - name: Download precompiled liblbug
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LBUG_LIB_KIND: static
+          LBUG_PRECOMPILED_RUN_ID: ${{ inputs.precompiledRunId }}
+          LBUG_TARGET_DIR: ${{ env.LBUG_NODEJS_PRECOMPILED_DIR }}
+        run: |
+          rm -rf "$LBUG_TARGET_DIR"
+          ./scripts/download-liblbug.sh
 
       - name: Update nightly version
         if: ${{ inputs.isNightly == true }}
@@ -67,20 +105,32 @@ jobs:
       - name: Install Node.js dependencies (non-Windows)
         if: ${{ matrix.platform != 'win32' }}
         working-directory: tools/nodejs_api/package
-        run: npm i
+        run: npm i --ignore-scripts
         env:
+          CMAKE_C_COMPILER_LAUNCHER: ccache
+          CMAKE_CXX_COMPILER_LAUNCHER: ccache
           MACOSX_DEPLOYMENT_TARGET: ${{ matrix.mac_env && '13.3' || '' }}
           ARCHFLAGS: ${{ matrix.mac_env && format('-arch {0}', matrix.arch) || '' }}
 
       - name: Install Node.js dependencies (non-Windows, tests)
         if: ${{ matrix.platform != 'win32' }}
         working-directory: tools/nodejs_api
-        run: npm i
+        run: npm i --ignore-scripts
 
       - name: Install Node.js dependencies (Windows)
         if: ${{ matrix.platform == 'win32' }}
         working-directory: tools/nodejs_api
-        run: npm i
+        run: npm i --ignore-scripts
+
+      - name: Setup ccache (Linux/macOS)
+        if: ${{ matrix.platform != 'win32' }}
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: nodejs-${{ runner.os }}-${{ matrix.arch }}-${{ github.ref }}
+          max-size: 2G
+          restore-keys: |
+            nodejs-${{ runner.os }}-${{ matrix.arch }}-refs/heads/main
+            nodejs-${{ runner.os }}-${{ matrix.arch }}-
 
       - name: Enable long paths (Windows)
         if: ${{ matrix.platform == 'win32' }}
@@ -120,6 +170,8 @@ jobs:
       - name: Build Node.js native module with ccache (Windows)
         if: ${{ matrix.platform == 'win32' }}
         shell: cmd
+        env:
+          EXTRA_CMAKE_FLAGS: -DBUILD_LBUG=FALSE -DBUILD_SHELL=FALSE -DLBUG_API_USE_PRECOMPILED_LIB=TRUE -DLBUG_API_PRECOMPILED_LIB_PATH=${{ env.LBUG_NODEJS_PRECOMPILED_LIB_PATH }}
         run: |
           powershell.exe -Command "Add-MpPreference -ExclusionPath '${{ github.workspace }}'"
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
@@ -129,7 +181,14 @@ jobs:
 
       - name: Build Node.js native module (non-Windows)
         if: ${{ matrix.platform != 'win32' }}
-        run: make GEN=Ninja nodejs
+        env:
+          CMAKE_C_COMPILER_LAUNCHER: ccache
+          CMAKE_CXX_COMPILER_LAUNCHER: ccache
+          EXTRA_CMAKE_FLAGS: -DBUILD_LBUG=FALSE -DBUILD_SHELL=FALSE -DLBUG_API_USE_PRECOMPILED_LIB=TRUE -DLBUG_API_PRECOMPILED_LIB_PATH=${{ env.LBUG_NODEJS_PRECOMPILED_LIB_PATH }}
+        run: |
+          ccache -s
+          make GEN=Ninja nodejs
+          ccache -s
 
       - name: Run Node.js tests
         working-directory: tools/nodejs_api
@@ -137,13 +196,13 @@ jobs:
 
       - name: Move Node.js native module (Linux)
         if: ${{ matrix.platform == 'linux' }}
-        working-directory: tools/nodejs_api/package
-        run: mv lbugjs.node ${{ matrix.node_name }}
+        working-directory: tools/nodejs_api
+        run: mv build/lbugjs.node ${{ matrix.node_name }}
 
       - name: Move Node.js native module (Mac)
         if: ${{ matrix.platform == 'darwin' }}
         working-directory: tools/nodejs_api
-        run: mv package/lbugjs.node ${{ matrix.node_name }}
+        run: mv build/lbugjs.node ${{ matrix.node_name }}
 
       - name: Move Node.js native module (Windows)
         if: ${{ matrix.platform == 'win32' }}
@@ -154,7 +213,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
-          path: tools/nodejs_api/${{ matrix.platform == 'linux' && 'package/' || matrix.platform == 'win32' && 'build/' || '' }}${{ matrix.node_name }}
+          path: tools/nodejs_api/${{ matrix.platform == 'win32' && 'build/' || '' }}${{ matrix.node_name }}
 
       - name: Clean up
         if: ${{ matrix.platform == 'darwin' }}
