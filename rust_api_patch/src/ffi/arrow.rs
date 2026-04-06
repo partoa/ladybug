@@ -58,5 +58,33 @@ pub(crate) mod ffi_arrow {
             connection: Pin<&mut Connection<'db>>,
             table_name: &str,
         ) -> Result<()>;
+
+        #[namespace = "lbug_arrow"]
+        fn copy_node_table_from_arrow<'db>(
+            connection: Pin<&mut Connection<'db>>,
+            table_name: &str,
+            schema: ArrowSchema,
+            array: ArrowArray,
+        ) -> Result<()>;
+
+        #[namespace = "lbug_arrow"]
+        fn create_rel_table_from_arrow<'db>(
+            connection: Pin<&mut Connection<'db>>,
+            rel_table_name: &str,
+            from_table_name: &str,
+            to_table_name: &str,
+            schema: ArrowSchema,
+            array: ArrowArray,
+        ) -> Result<String>;
+
+        #[namespace = "lbug_arrow"]
+        fn copy_rel_table_from_arrow<'db>(
+            connection: Pin<&mut Connection<'db>>,
+            rel_table_name: &str,
+            from_table_name: &str,
+            to_table_name: &str,
+            schema: ArrowSchema,
+            array: ArrowArray,
+        ) -> Result<()>;
     }
 }
