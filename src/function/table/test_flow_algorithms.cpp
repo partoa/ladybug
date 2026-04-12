@@ -133,14 +133,17 @@ void testSelfLoop() {
 // ═══════════════════════════════════════════════════════════════════
 
 void testDisconnectedComponents() {
-    FlowNetwork net(6);
-    net.addEdge(0, 1, 1.0);
-    net.addEdge(1, 2, 1.0);
-    net.addEdge(3, 4, 1.0);
-    net.addEdge(4, 5, 1.0);
-    assert(net.maxFlow(0, 5) == 0.0);
-    assert(net.maxFlow(0, 3) == 0.0);
-    assert(net.maxFlow(0, 2) == 1.0);
+    auto makeNet = []() {
+        FlowNetwork net(6);
+        net.addEdge(0, 1, 1.0);
+        net.addEdge(1, 2, 1.0);
+        net.addEdge(3, 4, 1.0);
+        net.addEdge(4, 5, 1.0);
+        return net;
+    };
+    { auto n = makeNet(); assert(n.maxFlow(0, 5) == 0.0); }
+    { auto n = makeNet(); assert(n.maxFlow(0, 3) == 0.0); }
+    { auto n = makeNet(); assert(n.maxFlow(0, 2) == 1.0); }
     std::cout << "PASS: testDisconnectedComponents\n";
 }
 
@@ -408,6 +411,52 @@ void testBidirectionalEdges() {
 // PERFORMANCE
 // ═══════════════════════════════════════════════════════════════════
 
+void testDeepChainNoStackOverflow() {
+    // 100,000-deep chain would stack-overflow with recursive dfsPush.
+    // Iterative implementation handles this fine.
+    const uint64_t N = 100000;
+    FlowNetwork net(N);
+    for (uint64_t i = 0; i < N - 1; ++i) {
+        net.addEdge(i, i + 1, 1.0);
+    }
+    assert(net.maxFlow(0, N - 1) == 1.0);
+    std::cout << "PASS: testDeepChainNoStackOverflow (depth " << N << ")\n";
+}
+
+void testOutOfBoundsEdge() {
+    FlowNetwork net(3);
+    // These should be silently ignored, not crash.
+    net.addEdge(0, 100, 1.0);
+    net.addEdge(100, 0, 1.0);
+    net.addEdge(0, 1, 1.0);
+    assert(net.maxFlow(0, 1) == 1.0);
+    std::cout << "PASS: testOutOfBoundsEdge\n";
+}
+
+void testOutOfBoundsSourceSink() {
+    FlowNetwork net(3);
+    net.addEdge(0, 1, 1.0);
+    // Out-of-bounds source/sink should return 0, not crash.
+    assert(net.maxFlow(0, 100) == 0.0);
+    assert(net.maxFlow(100, 0) == 0.0);
+    std::cout << "PASS: testOutOfBoundsSourceSink\n";
+}
+
+void testConsumedGuard() {
+    FlowNetwork net(3);
+    net.addEdge(0, 1, 1.0);
+    net.addEdge(1, 2, 1.0);
+    net.maxFlow(0, 2);
+    bool threw = false;
+    try {
+        net.maxFlow(0, 2);
+    } catch (const std::runtime_error&) {
+        threw = true;
+    }
+    assert(threw);
+    std::cout << "PASS: testConsumedGuard\n";
+}
+
 void testPerformanceLargeGrid() {
     const uint64_t W = 50;
     const uint64_t N = W * W;
@@ -485,9 +534,15 @@ int main() {
     testFlowInvariant();
     testBidirectionalEdges();
 
+    std::cout << "\n=== Bug Fixes ===\n";
+    testDeepChainNoStackOverflow();
+    testOutOfBoundsEdge();
+    testOutOfBoundsSourceSink();
+    testConsumedGuard();
+
     std::cout << "\n=== Performance ===\n";
     testPerformanceLargeGrid();
 
-    std::cout << "\nAll " << 32 << " tests passed.\n";
+    std::cout << "\nAll 36 tests passed.\n";
     return 0;
 }
