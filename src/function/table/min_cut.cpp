@@ -3,22 +3,12 @@
 
 #include "binder/binder.h"
 #include "function/table/bind_data.h"
-#include "function/table/simple_table_function.h"
 
 using namespace lbug::common;
 using namespace lbug::function;
 
 namespace lbug {
 namespace function {
-
-// ═══════════════════════════════════════════════════════════════════
-// MIN_CUT(relTable STRING, source INT64, sink INT64)
-// Returns: (node_offset INT64, side INT64, flow_value DOUBLE)
-//   side = 0 -> source side, side = 1 -> sink side
-//   flow_value = max-flow = min-cut capacity (same for all rows)
-//
-// Usage: CALL min_cut('ValueFlow', 0, 5) RETURN node_offset, side, flow_value;
-// ═══════════════════════════════════════════════════════════════════
 
 struct MinCutBindData final : TableFuncBindData {
     std::vector<uint64_t> offsets;
@@ -50,14 +40,26 @@ static offset_t minCutTableFunc(const TableFuncMorsel& morsel,
     return numToOutput;
 }
 
-static std::unique_ptr<TableFuncBindData> minCutBindFunc(
-    const main::ClientContext* context, const TableFuncBindInput* input) {
+static EdgeFilter extractFilter(const TableFuncBindInput* input, int startIdx) {
+    EdgeFilter filter;
+    auto instId = input->getLiteralVal<int64_t>(startIdx);
+    auto fieldId = input->getLiteralVal<int64_t>(startIdx + 1);
+    auto callId = input->getLiteralVal<int64_t>(startIdx + 2);
+    if (instId >= 0) filter.instanceId = instId;
+    if (fieldId >= 0) filter.fieldNameId = fieldId;
+    if (callId >= 0) filter.callSiteId = callId;
+    return filter;
+}
+
+static std::unique_ptr<TableFuncBindData> minCutBindImpl(
+    const main::ClientContext* context, const TableFuncBindInput* input,
+    const EdgeFilter& filter) {
     auto relTable = input->getLiteralVal<std::string>(0);
     auto source = static_cast<uint64_t>(input->getLiteralVal<int64_t>(1));
     auto sink = static_cast<uint64_t>(input->getLiteralVal<int64_t>(2));
 
     auto net = buildFlowNetworkFromQuery(
-        const_cast<main::ClientContext*>(context), relTable);
+        const_cast<main::ClientContext*>(context), relTable, filter);
     double flow = net.maxFlow(source, sink);
 
     std::vector<uint8_t> cutSides;
@@ -83,15 +85,22 @@ static std::unique_ptr<TableFuncBindData> minCutBindFunc(
 
 function_set MinCutFunction::getFunctionSet() {
     function_set result;
-    auto func = std::make_unique<TableFunction>(name,
-        std::vector<LogicalTypeID>{LogicalTypeID::STRING, LogicalTypeID::INT64,
-                                   LogicalTypeID::INT64});
-    func->tableFunc = SimpleTableFunc::getTableFunc(minCutTableFunc);
-    func->bindFunc = minCutBindFunc;
-    func->initSharedStateFunc = SimpleTableFunc::initSharedState;
-    func->initLocalStateFunc = TableFunction::initEmptyLocalState;
-    func->canParallelFunc = [] { return false; };
-    result.push_back(std::move(func));
+    auto make = [](table_func_bind_t bindFn, std::vector<LogicalTypeID> params) {
+        auto func = std::make_unique<TableFunction>(MinCutFunction::name, std::move(params));
+        func->tableFunc = SimpleTableFunc::getTableFunc(minCutTableFunc);
+        func->bindFunc = std::move(bindFn);
+        func->initSharedStateFunc = SimpleTableFunc::initSharedState;
+        func->initLocalStateFunc = TableFunction::initEmptyLocalState;
+        func->canParallelFunc = [] { return false; };
+        return func;
+    };
+    result.push_back(make(
+        [](auto* ctx, auto* in) { return minCutBindImpl(ctx, in, {}); },
+        {LogicalTypeID::STRING, LogicalTypeID::INT64, LogicalTypeID::INT64}));
+    result.push_back(make(
+        [](auto* ctx, auto* in) { return minCutBindImpl(ctx, in, extractFilter(in, 3)); },
+        {LogicalTypeID::STRING, LogicalTypeID::INT64, LogicalTypeID::INT64,
+         LogicalTypeID::INT64, LogicalTypeID::INT64, LogicalTypeID::INT64}));
     return result;
 }
 
