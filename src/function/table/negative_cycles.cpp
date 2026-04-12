@@ -3,7 +3,6 @@
 
 #include "binder/binder.h"
 #include "function/table/bind_data.h"
-#include "function/table/simple_table_function.h"
 
 using namespace lbug::common;
 using namespace lbug::function;
@@ -11,19 +10,9 @@ using namespace lbug::function;
 namespace lbug {
 namespace function {
 
-// ═══════════════════════════════════════════════════════════════════
 // NEGATIVE_CYCLES(relTable STRING)
+// NEGATIVE_CYCLES(relTable STRING, filter STRING)
 // Returns: (cycle_id INT64, position INT64, node_offset INT64)
-//
-// Finds all simple cycles (up to length 10) in the directed graph.
-// Each row is one node in a cycle. Nodes in the same cycle share
-// the same cycle_id. Position gives the order within the cycle.
-//
-// CPG use: detect circular module dependencies, mutual recursion,
-// reentrancy patterns.
-//
-// Usage: CALL negative_cycles('DependsOn') RETURN cycle_id, position, node_offset;
-// ═══════════════════════════════════════════════════════════════════
 
 struct CycleRow {
     int64_t cycleId;
@@ -56,17 +45,17 @@ static offset_t negativeCyclesTableFunc(const TableFuncMorsel& morsel,
     return numToOutput;
 }
 
-static std::unique_ptr<TableFuncBindData> negativeCyclesBindFunc(
-    const main::ClientContext* context, const TableFuncBindInput* input) {
+static std::unique_ptr<TableFuncBindData> negativeCyclesBindImpl(
+    const main::ClientContext* context, const TableFuncBindInput* input,
+    const std::string& filterExpr) {
     auto relTable = input->getLiteralVal<std::string>(0);
 
     uint64_t maxOffset = 0;
     auto edges = buildEdgeListFromQuery(
-        const_cast<main::ClientContext*>(context), relTable, maxOffset);
+        const_cast<main::ClientContext*>(context), relTable, maxOffset, filterExpr);
 
     auto cycles = detectAllSimpleCycles(maxOffset + 1, edges, 10);
 
-    // Flatten cycles into rows.
     std::vector<CycleRow> rows;
     for (int64_t cycleIdx = 0; cycleIdx < static_cast<int64_t>(cycles.size()); ++cycleIdx) {
         for (int64_t pos = 0; pos < static_cast<int64_t>(cycles[cycleIdx].nodeOffsets.size());
@@ -88,14 +77,24 @@ static std::unique_ptr<TableFuncBindData> negativeCyclesBindFunc(
 
 function_set NegativeCyclesFunction::getFunctionSet() {
     function_set result;
-    auto func = std::make_unique<TableFunction>(name,
-        std::vector<LogicalTypeID>{LogicalTypeID::STRING});
-    func->tableFunc = SimpleTableFunc::getTableFunc(negativeCyclesTableFunc);
-    func->bindFunc = negativeCyclesBindFunc;
-    func->initSharedStateFunc = SimpleTableFunc::initSharedState;
-    func->initLocalStateFunc = TableFunction::initEmptyLocalState;
-    func->canParallelFunc = [] { return false; };
-    result.push_back(std::move(func));
+    auto make = [](table_func_bind_t bindFn, std::vector<LogicalTypeID> params) {
+        auto func = std::make_unique<TableFunction>(
+            NegativeCyclesFunction::name, std::move(params));
+        func->tableFunc = SimpleTableFunc::getTableFunc(negativeCyclesTableFunc);
+        func->bindFunc = std::move(bindFn);
+        func->initSharedStateFunc = SimpleTableFunc::initSharedState;
+        func->initLocalStateFunc = TableFunction::initEmptyLocalState;
+        func->canParallelFunc = [] { return false; };
+        return func;
+    };
+    result.push_back(make(
+        [](const main::ClientContext* ctx, const TableFuncBindInput* in) { return negativeCyclesBindImpl(ctx, in, ""); },
+        {LogicalTypeID::STRING}));
+    result.push_back(make(
+        [](const main::ClientContext* ctx, const TableFuncBindInput* in) {
+            return negativeCyclesBindImpl(ctx, in, in->getLiteralVal<std::string>(1));
+        },
+        {LogicalTypeID::STRING, LogicalTypeID::STRING}));
     return result;
 }
 

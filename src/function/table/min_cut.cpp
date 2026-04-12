@@ -10,6 +10,10 @@ using namespace lbug::function;
 namespace lbug {
 namespace function {
 
+// MIN_CUT(relTable STRING, source INT64, sink INT64)
+// MIN_CUT(relTable STRING, source INT64, sink INT64, filter STRING)
+// Returns: (node_offset INT64, side INT64, flow_value DOUBLE)
+
 struct MinCutBindData final : TableFuncBindData {
     std::vector<uint64_t> offsets;
     std::vector<uint8_t> sides;
@@ -40,26 +44,15 @@ static offset_t minCutTableFunc(const TableFuncMorsel& morsel,
     return numToOutput;
 }
 
-static EdgeFilter extractFilter(const TableFuncBindInput* input, int startIdx) {
-    EdgeFilter filter;
-    auto instId = input->getLiteralVal<int64_t>(startIdx);
-    auto fieldId = input->getLiteralVal<int64_t>(startIdx + 1);
-    auto callId = input->getLiteralVal<int64_t>(startIdx + 2);
-    if (instId >= 0) filter.instanceId = instId;
-    if (fieldId >= 0) filter.fieldNameId = fieldId;
-    if (callId >= 0) filter.callSiteId = callId;
-    return filter;
-}
-
 static std::unique_ptr<TableFuncBindData> minCutBindImpl(
     const main::ClientContext* context, const TableFuncBindInput* input,
-    const EdgeFilter& filter) {
+    const std::string& filterExpr) {
     auto relTable = input->getLiteralVal<std::string>(0);
     auto source = static_cast<uint64_t>(input->getLiteralVal<int64_t>(1));
     auto sink = static_cast<uint64_t>(input->getLiteralVal<int64_t>(2));
 
     auto net = buildFlowNetworkFromQuery(
-        const_cast<main::ClientContext*>(context), relTable, filter);
+        const_cast<main::ClientContext*>(context), relTable, filterExpr);
     double flow = net.maxFlow(source, sink);
 
     std::vector<uint8_t> cutSides;
@@ -95,12 +88,14 @@ function_set MinCutFunction::getFunctionSet() {
         return func;
     };
     result.push_back(make(
-        [](auto* ctx, auto* in) { return minCutBindImpl(ctx, in, {}); },
+        [](const main::ClientContext* ctx, const TableFuncBindInput* in) { return minCutBindImpl(ctx, in, ""); },
         {LogicalTypeID::STRING, LogicalTypeID::INT64, LogicalTypeID::INT64}));
     result.push_back(make(
-        [](auto* ctx, auto* in) { return minCutBindImpl(ctx, in, extractFilter(in, 3)); },
+        [](const main::ClientContext* ctx, const TableFuncBindInput* in) {
+            return minCutBindImpl(ctx, in, in->getLiteralVal<std::string>(3));
+        },
         {LogicalTypeID::STRING, LogicalTypeID::INT64, LogicalTypeID::INT64,
-         LogicalTypeID::INT64, LogicalTypeID::INT64, LogicalTypeID::INT64}));
+         LogicalTypeID::STRING}));
     return result;
 }
 

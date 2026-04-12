@@ -7,37 +7,14 @@
 namespace lbug {
 namespace function {
 
-// Build a Cypher WHERE clause from the edge filter.
-// Returns "" if no filters, or " WHERE r.instance_id = 42 AND r.field_name_id = 7" etc.
-static std::string buildFilterClause(const EdgeFilter& filter) {
-    std::vector<std::string> conditions;
-    if (filter.instanceId.has_value()) {
-        conditions.push_back("r.instance_id = " + std::to_string(*filter.instanceId));
-    }
-    if (filter.fieldNameId.has_value()) {
-        conditions.push_back("r.field_name_id = " + std::to_string(*filter.fieldNameId));
-    }
-    if (filter.callSiteId.has_value()) {
-        conditions.push_back("r.call_site_id = " + std::to_string(*filter.callSiteId));
-    }
-    if (conditions.empty()) {
-        return "";
-    }
-    std::string clause = " WHERE ";
-    for (size_t i = 0; i < conditions.size(); ++i) {
-        if (i > 0) {
-            clause += " AND ";
-        }
-        clause += conditions[i];
-    }
-    return clause;
-}
-
 FlowNetwork buildFlowNetworkFromQuery(main::ClientContext* context,
-    const std::string& relTableName, const EdgeFilter& filter) {
-    auto whereClause = buildFilterClause(filter);
-    auto query = "MATCH (a)-[r:" + relTableName + "]->(b)" + whereClause +
-                 " RETURN offset(id(a)), offset(id(b))";
+    const std::string& relTableName, const std::string& filterExpr) {
+    std::string query = "MATCH (a)-[r:" + relTableName + "]->(b)";
+    if (!filterExpr.empty()) {
+        query += " WHERE " + filterExpr;
+    }
+    query += " RETURN offset(id(a)), offset(id(b))";
+
     auto result = context->query(query);
     if (!result->isSuccess()) {
         throw common::RuntimeException("Failed to query edges from '" + relTableName + "': " +
@@ -63,10 +40,14 @@ FlowNetwork buildFlowNetworkFromQuery(main::ClientContext* context,
 }
 
 std::vector<WeightedEdge> buildEdgeListFromQuery(main::ClientContext* context,
-    const std::string& relTableName, uint64_t& outMaxOffset, const EdgeFilter& filter) {
-    auto whereClause = buildFilterClause(filter);
-    auto query = "MATCH (a)-[r:" + relTableName + "]->(b)" + whereClause +
-                 " RETURN offset(id(a)), offset(id(b))";
+    const std::string& relTableName, uint64_t& outMaxOffset,
+    const std::string& filterExpr) {
+    std::string query = "MATCH (a)-[r:" + relTableName + "]->(b)";
+    if (!filterExpr.empty()) {
+        query += " WHERE " + filterExpr;
+    }
+    query += " RETURN offset(id(a)), offset(id(b))";
+
     auto result = context->query(query);
     if (!result->isSuccess()) {
         throw common::RuntimeException("Failed to query edges from '" + relTableName + "': " +
