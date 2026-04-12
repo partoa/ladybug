@@ -56,7 +56,6 @@ jobs:
         run: |
           uv venv
           source .venv/bin/activate
-          uv pip install packaging
           python3 update-nightly-build-version.py
         working-directory: scripts
 
@@ -64,6 +63,7 @@ jobs:
         env:
           CC: gcc-13
           CXX: g++-13
+          LDFLAGS: "-static-libstdc++"
           EXTRA_CMAKE_FLAGS: -DBUILD_LBUG=FALSE -DBUILD_SHELL=FALSE -DLBUG_API_USE_PRECOMPILED_LIB=TRUE -DLBUG_API_PRECOMPILED_LIB_PATH=${{ env.LBUG_JAVA_PRECOMPILED_LIB_PATH }}
         run: |
           make GEN=Ninja java
@@ -110,7 +110,6 @@ jobs:
         run: |
           uv venv
           source .venv/bin/activate
-          uv pip install packaging
           python3 update-nightly-build-version.py
         working-directory: scripts
 
@@ -118,6 +117,7 @@ jobs:
         env:
           CC: gcc-13
           CXX: g++-13
+          LDFLAGS: "-static-libstdc++"
           EXTRA_CMAKE_FLAGS: -DBUILD_LBUG=FALSE -DBUILD_SHELL=FALSE -DLBUG_API_USE_PRECOMPILED_LIB=TRUE -DLBUG_API_PRECOMPILED_LIB_PATH=${{ env.LBUG_JAVA_PRECOMPILED_LIB_PATH }}
         run: make GEN=Ninja java
 
@@ -156,7 +156,6 @@ jobs:
         run: |
           uv venv
           source .venv/bin/activate
-          uv pip install packaging
           python3 update-nightly-build-version.py
         working-directory: scripts
 
@@ -208,7 +207,6 @@ jobs:
           else
             source .venv/bin/activate
           fi
-          uv pip install packaging
           python3 update-nightly-build-version.py
         working-directory: ./scripts
 

@@ -40,11 +40,11 @@ The database was formerly known as [Kuzu](https://github.com/kuzudb/kuzu).
 
 | Language | Installation                                                           |
 | -------- |------------------------------------------------------------------------|
-| Python   | `pip install real_ladybug`                                             |
+| Python   | `pip install ladybug`                                             |
 | NodeJS   | `npm install @ladybug/core`                                            |
 | Rust     | `cargo add lbug`                                                       |
-| Go       | `go get github.com/lbugdb/go-ladybug`                                     |
-| Swift    | [lbug-swift](https://github.com/lbugdb/swift-ladybug)                     |
+| Go       | `go get github.com/LadybugDB/go-ladybug`                                     |
+| Swift    | [lbug-swift](https://github.com/LadybugDB/swift-ladybug)                     |
 | Java     | [Maven Central](https://central.sonatype.com/artifact/com.ladybugdb/lbug) |
 | C/C++    | [precompiled binaries](https://github.com/LadybugDB/ladybug/releases/latest) |
 | CLI      | [precompiled binaries](https://github.com/LadybugDB/ladybug/releases/latest) |

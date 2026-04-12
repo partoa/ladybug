@@ -1,74 +1,59 @@
-PYPI_URL = "https://pypi.org/pypi/real_ladybug/json"
-TEST_PYPI_URL = "https://test.pypi.org/pypi/real_ladybug/json"
 CMAKE_KEYWORD = "project(Lbug VERSION "
 CMAKE_SUFFIX = " LANGUAGES CXX C)\n"
 EXTENSION_KEYWORD = 'add_definitions(-DLBUG_EXTENSION_VERSION="'
 EXTENSION_SUFFIX = '")\n'
 EXTENSION_DEV_VERSION = "dev"
 
-import urllib.request
-import urllib.error
-import json
 import os
+import re
 import sys
+from datetime import date
+
+
+def read_base_version(cmake_lists):
+    """Extract MAJOR.MINOR.PATCH from the project() line in CMakeLists.txt.
+
+    Previous nightly runs may have written a four-component version such as
+    0.15.3.20260409 (the date as the fourth component).  We always strip the
+    fourth component so that successive nightly runs keep using the same
+    MAJOR.MINOR.PATCH base, producing e.g. 0.15.3.dev20260410 today and
+    0.15.3.dev20260411 tomorrow.
+    """
+    for line in cmake_lists:
+        if CMAKE_KEYWORD in line:
+            m = re.search(r"project\(Lbug VERSION ([\d.]+)", line)
+            if m:
+                parts = m.group(1).split(".")
+                # Keep only the first three numeric components (MAJOR.MINOR.PATCH).
+                return ".".join(parts[:3])
+    return None
+
 
 def main():
-    try:
-        from packaging.version import Version
-    except ImportError:
-        from distutils.version import LooseVersion as Version
+    cmake_lists_path = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "CMakeLists.txt")
+    )
 
-    # Fetch releases from production PyPI
-    try:
-        with urllib.request.urlopen(PYPI_URL) as url:
-            data = json.loads(url.read().decode())
-    except urllib.error.HTTPError as e:
-        if e.code == 404:
-            data = {"releases": {}}
-        else:
-            raise
-    releases = data["releases"]
+    with open(cmake_lists_path, "r") as f:
+        cmake_lists = f.readlines()
 
-    # Fetch releases from test PyPI for dev versions
-    try:
-        with urllib.request.urlopen(TEST_PYPI_URL) as url:
-            test_data = json.loads(url.read().decode())
-            # Merge test.pypi.org releases into releases dict
-            releases.update(test_data["releases"])
-    except urllib.error.HTTPError as e:
-        if e.code == 404:
-            pass  # No releases on test PyPI
-        else:
-            raise
-    versions = list(releases.keys())
-    versions.sort(key=Version)
-    dev_versions = [v for v in versions if "dev" in v]
-    stable_versions = [v for v in versions if not "dev" in v]
-    latest_dev_version = dev_versions[-1] if len(dev_versions) > 0 else None
-    latest_stable_version = stable_versions[-1] if len(stable_versions) > 0 else None
-    print("Latest dev version: %s." % str(latest_dev_version))
-    print("Latest stable version: %s." % str(latest_stable_version))
-    if latest_dev_version is None and latest_stable_version is None:
-        print("No versions found. Defaulting to 0.0.1.dev1.")
-        dev_version = "0.0.1.dev1"
-    elif latest_dev_version is None or latest_stable_version is not None and Version(latest_dev_version) < Version(latest_stable_version):
-        print("The latest stable version is newer than dev version or no dev version exists. Bumping dev version from stable version.")
-        latest_stable_version_split = latest_stable_version.split(".")
-        latest_stable_version_split[-1] = str(int(latest_stable_version_split[-1]) + 1)
-        latest_stable_version_split.append("dev1")
-        dev_version = ".".join(latest_stable_version_split)
-    else:
-        print("The latest dev version is newer than stable version. Bumping dev version from dev version.")
-        latest_dev_version_split = latest_dev_version.split(".")
-        latest_dev_version_split[-1] = "dev" + str(int(latest_dev_version_split[-1][3:]) + 1)
-        dev_version = ".".join(latest_dev_version_split)
-    print("New Python dev version: %s." % dev_version)
-    cmake_version = dev_version.replace("dev", "")
-    print("New CMake version: %s." % cmake_version)
-    cmake_lists_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "CMakeLists.txt"))
-    print("Updating %s..." % cmake_lists_path)
-    with open(cmake_lists_path, "r") as cmake_lists_file:
-        cmake_lists = cmake_lists_file.readlines()
+    base_version = read_base_version(cmake_lists)
+    if base_version is None:
+        print("ERROR: Could not find base version in CMakeLists.txt", file=sys.stderr)
+        sys.exit(1)
+
+    today = date.today().strftime("%Y%m%d")
+
+    # PEP 440 dev version used for PyPI / TestPyPI uploads.
+    dev_version = f"{base_version}.dev{today}"
+    # CMake does not understand "dev"; use a plain four-component version instead.
+    cmake_version = f"{base_version}.{today}"
+
+    print(f"Base version from CMakeLists.txt: {base_version}.")
+    print(f"New Python dev version: {dev_version}.")
+    print(f"New CMake version: {cmake_version}.")
+
+    print(f"Updating {cmake_lists_path}...")
     counter = 2
     for i, line in enumerate(cmake_lists):
         if CMAKE_KEYWORD in line:
@@ -79,18 +64,23 @@ def main():
             counter -= 1
         if counter == 0:
             break
-    with open(cmake_lists_path, "w") as cmake_lists_file:
-        cmake_lists_file.writelines(cmake_lists)
+
+    with open(cmake_lists_path, "w") as f:
+        f.writelines(cmake_lists)
+
     print("Committing changes...")
     sys.stdout.flush()
     os.system("git config user.email ci@ladybugdb.com")
-    os.system("git config user.name \"Lbug CI\"")
-    os.system("git add %s" % cmake_lists_path)
-    os.system("git commit -m \"Update CMake version to %s and change extension version to dev.\"" % cmake_version)
+    os.system('git config user.name "Lbug CI"')
+    os.system(f"git add {cmake_lists_path}")
+    os.system(
+        f'git commit -m "Update CMake version to {cmake_version} and change extension version to dev."'
+    )
     sys.stdout.flush()
     sys.stderr.flush()
     print("All done!")
     sys.stdout.flush()
+
 
 if __name__ == "__main__":
     main()

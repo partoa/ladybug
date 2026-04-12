@@ -45,7 +45,6 @@ jobs:
         run: |
           uv venv
           source .venv/bin/activate
-          uv pip install packaging
           python3 update-nightly-build-version.py
         working-directory: scripts
       

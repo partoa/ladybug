@@ -72,7 +72,6 @@ jobs:
         run: |
           uv venv
           source .venv/bin/activate
-          uv pip install packaging
           python3 update-nightly-build-version.py | grep "New Python dev version:" | awk -F'New Python dev version: ' '{print $2}' | sed 's/\.$//' > version.txt
           cat version.txt
         working-directory: scripts
@@ -92,9 +91,11 @@ jobs:
 
   build-wheels:
     if: ${{ github.event_name == 'schedule' || github.event.inputs.skipPython != 'true' }}
+    needs: [build-precompiled-bin]
     uses: ./.github/workflows/python-wheel-workflow.yml
     with:
       isNightly: ${{ github.event_name == 'schedule' || github.event.inputs.isNightly == 'true' }}
+      precompiledRunId: ${{ github.run_id }}
     secrets: inherit
 
   deploy-python:
@@ -181,7 +182,6 @@ jobs:
         run: |
           uv venv
           source .venv/bin/activate
-          uv pip install packaging
           python3 update-nightly-build-version.py
         working-directory: scripts
 
@@ -239,7 +239,6 @@ jobs:
         run: |
           uv venv
           source .venv/bin/activate
-          uv pip install packaging
           python3 update-nightly-build-version.py
         working-directory: scripts
 
@@ -344,7 +343,6 @@ jobs:
         run: |
           uv venv
           source .venv/bin/activate
-          uv pip install packaging
           python3 update-nightly-build-version.py
         working-directory: scripts
 
@@ -375,9 +373,6 @@ jobs:
         with:
           node-version: "22"
           registry-url: "https://registry.npmjs.org"
-
-      - name: Upgrade npm
-        run: npm install -g npm@latest
 
       - name: Package Node.js API (main + per-platform sub-packages)
         run: node package
