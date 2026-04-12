@@ -1,6 +1,12 @@
 add_library(lbug_table_function
         OBJECT
         arrow_scan.cpp
+        flow_graph.cpp
+        flow_utils.cpp
+        max_flow.cpp
+        min_cut.cpp
+        gomory_hu.cpp
+        negative_cycles.cpp
         bind_data.cpp
         bind_input.cpp
         bm_info.cpp
