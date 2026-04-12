@@ -226,5 +226,53 @@ struct NegativeCyclesFunction final {
     static function_set getFunctionSet();
 };
 
+struct DominatorsFunction final {
+    static constexpr const char* name = "DOMINATORS";
+
+    static function_set getFunctionSet();
+};
+
+struct FeedbackArcSetFunction final {
+    static constexpr const char* name = "FEEDBACK_ARC_SET";
+
+    static function_set getFunctionSet();
+};
+
+struct ArticulationPointsFunction final {
+    static constexpr const char* name = "ARTICULATION_POINTS";
+
+    static function_set getFunctionSet();
+};
+
+struct BridgesFunction final {
+    static constexpr const char* name = "BRIDGES";
+
+    static function_set getFunctionSet();
+};
+
+struct StructuralDistanceFunction final {
+    static constexpr const char* name = "STRUCTURAL_DISTANCE";
+
+    static function_set getFunctionSet();
+};
+
+struct KHopSubgraphFunction final {
+    static constexpr const char* name = "K_HOP_SUBGRAPH";
+
+    static function_set getFunctionSet();
+};
+
+struct CallPathsFunction final {
+    static constexpr const char* name = "CALL_PATHS";
+
+    static function_set getFunctionSet();
+};
+
+struct ConstrainedReachableFunction final {
+    static constexpr const char* name = "CONSTRAINED_REACHABLE";
+
+    static function_set getFunctionSet();
+};
+
 } // namespace function
 } // namespace lbug

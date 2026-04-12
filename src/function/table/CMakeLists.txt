@@ -3,6 +3,8 @@ add_library(lbug_table_function
         arrow_scan.cpp
         flow_graph.cpp
         flow_utils.cpp
+        graph_algorithms.cpp
+        graph_algo_functions.cpp
         max_flow.cpp
         min_cut.cpp
         gomory_hu.cpp

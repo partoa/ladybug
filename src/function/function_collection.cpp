@@ -234,6 +234,10 @@ FunctionCollection* FunctionCollection::getFunctions() {
         TABLE_FUNCTION(ShowMacrosFunction), TABLE_FUNCTION(ArrowScanFunction),
         TABLE_FUNCTION(MaxFlowFunction), TABLE_FUNCTION(MinCutFunction),
         TABLE_FUNCTION(GomoryHuFunction), TABLE_FUNCTION(NegativeCyclesFunction),
+        TABLE_FUNCTION(DominatorsFunction), TABLE_FUNCTION(FeedbackArcSetFunction),
+        TABLE_FUNCTION(ArticulationPointsFunction), TABLE_FUNCTION(BridgesFunction),
+        TABLE_FUNCTION(KHopSubgraphFunction), TABLE_FUNCTION(CallPathsFunction),
+        TABLE_FUNCTION(ConstrainedReachableFunction),
 
         // Standalone Table functions
         STANDALONE_TABLE_FUNCTION(LocalCacheArrayColumnFunction),
