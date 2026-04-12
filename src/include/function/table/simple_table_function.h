@@ -202,5 +202,29 @@ struct ArrowScanFunction final {
     static function_set getFunctionSet();
 };
 
+struct MaxFlowFunction final {
+    static constexpr const char* name = "MAX_FLOW";
+
+    static function_set getFunctionSet();
+};
+
+struct MinCutFunction final {
+    static constexpr const char* name = "MIN_CUT";
+
+    static function_set getFunctionSet();
+};
+
+struct GomoryHuFunction final {
+    static constexpr const char* name = "GOMORY_HU";
+
+    static function_set getFunctionSet();
+};
+
+struct NegativeCyclesFunction final {
+    static constexpr const char* name = "NEGATIVE_CYCLES";
+
+    static function_set getFunctionSet();
+};
+
 } // namespace function
 } // namespace lbug

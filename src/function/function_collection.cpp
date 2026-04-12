@@ -232,6 +232,8 @@ FunctionCollection* FunctionCollection::getFunctions() {
         TABLE_FUNCTION(ShowOfficialExtensionsFunction), TABLE_FUNCTION(ShowIndexesFunction),
         TABLE_FUNCTION(ShowProjectedGraphsFunction), TABLE_FUNCTION(ProjectedGraphInfoFunction),
         TABLE_FUNCTION(ShowMacrosFunction), TABLE_FUNCTION(ArrowScanFunction),
+        TABLE_FUNCTION(MaxFlowFunction), TABLE_FUNCTION(MinCutFunction),
+        TABLE_FUNCTION(GomoryHuFunction), TABLE_FUNCTION(NegativeCyclesFunction),
 
         // Standalone Table functions
         STANDALONE_TABLE_FUNCTION(LocalCacheArrayColumnFunction),
